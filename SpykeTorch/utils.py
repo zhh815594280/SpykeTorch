@@ -318,7 +318,7 @@ class ISI:
             for j in range(len(tensor_flatten)):
                 if tensor_flatten[j] == 1 and spike_map[i - 1][j] == 0:
                     spike_map[i][j] = 1
-        spike_map = spike_map.reshape(tuple(intencities.shape))
+        spike_map = spike_map.reshape(tuple(spikes.shape))
         return spike_map
         
     def interspike_interval(self, intencities):
