@@ -312,8 +312,9 @@ class ISI:
     def real_TTFS(self, intencities):
         spike_map = torch.zeros_like(self.Latency_transform(intencities))
         spike_map = torch.reshape(spike_map, (self.timesteps, -1,))
+        spikes = self.Latency_transform(intencities)
         for i in range(self.timesteps):
-            tensor_flatten = torch.reshape(self.Latency_transform(intencities)[i], (-1,))
+            tensor_flatten = torch.reshape(spikes[i], (-1,))
             for j in range(len(tensor_flatten)):
                 if tensor_flatten[j] == 1 and spike_map[i - 1][j] == 0:
                     spike_map[i][j] = 1
