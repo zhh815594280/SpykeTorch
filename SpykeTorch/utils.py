@@ -304,6 +304,20 @@ class Intensity2Latency:
             return self.intensity_to_latency(image).sign()
         return self.intensity_to_latency(image)
 
+class ISI:
+    def __init__(self, number_of_spike_bins):
+        self.timesteps = number_of_spike_bins
+        self.Latency_transform = Intensity2Latency(self.timesteps, to_spike = True)
+        
+    def interspike_interval(self, intencities):
+        stack_bin = []
+        stack_bin.append(self.Latency_transform(intencities))
+        stack_bin.append(self.Latency_transform(intencities / 1.2))
+        stack_bin.append(self.Latency_transform(intencities / 1.5))
+        return torch.stack(stack_bin)
+        
+    def __call__(self, image):
+        return self.interspike_interval(image)
 #class ImageFolderCache(datasets.ImageFolder):
 #	def __init__(self, root, transform=None, target_transform=None,
 #                 loader=datasets.folder.default_loader, cache_address=None):
