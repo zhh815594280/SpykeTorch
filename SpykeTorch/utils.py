@@ -332,7 +332,7 @@ class ISI:
         for i in range(len(spike_1_flatten)):
             if spike_1_flatten[i] == 1 or spike_2_flatten[i] == 1 or spike_3_flatten[i] == 1:
                 spike_ISI[i] = 1
-        spike_ISI.reshape(tuple(intencities.shape))
+        spike_ISI.reshape(tuple(spike_1.shape))
         return spike_ISI
         
     def __call__(self, image):
