@@ -333,6 +333,7 @@ class ISI:
             if spike_1_flatten[i] == 1 or spike_2_flatten[i] == 1 or spike_3_flatten[i] == 1:
                 spike_ISI[i] = 1
         outputshape = intencities.shape
+        print(outputshape)
         outputshape[0] = self.timesteps
         spike_ISI.reshape(tuple(outputshape))
         return spike_ISI
