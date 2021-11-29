@@ -309,12 +309,30 @@ class ISI:
         self.timesteps = number_of_spike_bins
         self.Latency_transform = Intensity2Latency(self.timesteps, to_spike = True)
         
+    def real_TTFS(self, intencities):
+        spike_map = torch.zeros_like(self.Latency_transform(intencities))
+        spike_map = torch.reshape(spike_map, (self.timesteps, -1,))
+        for i in range(self.timesteps):
+            tensor_flatten = torch.reshape(self.Latency_transform(intencities)[i], (-1,))
+            for j in range(len(tensor_flatten)):
+                if tensor_flatten[j] == 1 and spike_map[i - 1][j] == 0:
+                    spike_map[i][j] = 1
+        spike_map = spike_map.reshape(tuple(intencities.shape))
+        return spike_map
+        
     def interspike_interval(self, intencities):
-        stack_bin = []
-        stack_bin.append(self.Latency_transform(intencities))
-        stack_bin.append(self.Latency_transform(intencities / 1.2))
-        stack_bin.append(self.Latency_transform(intencities / 1.5))
-        return torch.stack(stack_bin)
+        spike_1 = self.real_TTFS(intencities)
+        spike_1_flatten =  torch.reshape(spike_1, (-1,))
+        spike_2 = self.real_TTFS(intencities / 1.2)
+        spike_2_flatten =  torch.reshape(spike_2, (-1,))
+        spike_3 = self.real_TTFS(intencities / 1.5)
+        spike_3_flatten =  torch.reshape(spike_3, (-1,))
+        spike_ISI = torch.zeros_like(spike_1_flatten)
+        for i in range(len(spike_1_flatten)):
+            if spike_1_flatten[i] == 1 or spike_2_flatten[i] == 1 or spike_3_flatten[i] == 1:
+                spike_ISI[i] = 1
+        spike_ISI.reshape(tuple(intencities.shape))
+        return spike_ISI
         
     def __call__(self, image):
         return self.interspike_interval(image)
