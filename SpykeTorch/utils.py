@@ -360,40 +360,62 @@ class Intensity2Latency_real:
     
     
 class ISI:
+    r"""Applies intensity to latency transform. Spike waves are generated in the form of
+    spike bins with almost equal number of spikes.
+
+    Args:
+        number_of_spike_bins (int): Number of spike bins (time steps).
+        to_spike (boolean, optional): To generate spike-wave tensor or not. Default: False
+
+    .. note::
+
+        If :attr:`to_spike` is :attr:`False`, then the result is intesities that are ordered and packed into bins.
+    """
     def __init__(self, number_of_spike_bins):
-        self.timesteps = number_of_spike_bins
-        self.Latency_transform = Intensity2Latency(self.timesteps, to_spike = True)
-        
-    def real_TTFS(self, intencities):
-        spike_map = torch.zeros_like(self.Latency_transform(intencities))
-        spike_map = torch.reshape(spike_map, (self.timesteps, -1,))
-        spikes = self.Latency_transform(intencities)
-        for i in range(self.timesteps):
-            tensor_flatten = torch.reshape(spikes[i], (-1,))
-            for j in range(len(tensor_flatten)):
-                if tensor_flatten[j] == 1 and spike_map[i - 1][j] == 0:
-                    spike_map[i][j] = 1
-        spike_map = spike_map.reshape(tuple(spikes.shape))
-        return spike_map
-        
-    def interspike_interval(self, intencities):
-        spike_1 = self.real_TTFS(intencities)
-        spike_1_flatten =  torch.reshape(spike_1, (-1,))
-        spike_2 = self.real_TTFS(intencities / 1.2)
-        spike_2_flatten =  torch.reshape(spike_2, (-1,))
-        spike_3 = self.real_TTFS(intencities / 1.5)
-        spike_3_flatten =  torch.reshape(spike_3, (-1,))
-        spike_ISI = torch.zeros_like(spike_1_flatten)
-        for i in range(len(spike_1_flatten)):
-            if spike_1_flatten[i] == 1 or spike_2_flatten[i] == 1 or spike_3_flatten[i] == 1:
-                spike_ISI[i] = 1
-        outputshape = list(intencities.shape)
-        outputshape[0] = self.timesteps
-        spike_ISI.reshape(tuple(outputshape))
-        return spike_ISI
-        
+        self.time_steps = number_of_spike_bins
+    
+    # intencities is a tensor of input intencities (1, input_channels, height, width)
+    # returns a tensor of tensors containing spikes in each timestep (considers minibatch for timesteps)
+    # spikes are accumulative, i.e. spikes in timestep i are also presented in i+1, i+2, ...
+    def intensity_to_latency(self, intencities):
+        #bins = []
+        bins_intencities = []
+        nonzero_cnt = torch.nonzero(intencities).size()[0]
+
+        #check for empty bins
+        bin_size = nonzero_cnt//self.time_steps
+
+        #sort
+        intencities_flattened = torch.reshape(intencities, (-1,))
+        intencities_flattened_sorted = torch.sort(intencities_flattened, descending=True)
+
+        #bin packing
+        sorted_bins_value, sorted_bins_idx = torch.split(intencities_flattened_sorted[0], bin_size), torch.split(intencities_flattened_sorted[1], bin_size)
+
+        #add to the list of timesteps
+        spike_map_1 = torch.zeros_like(intencities_flattened_sorted[0])
+        spike_map_2 = torch.zeros_like(intencities_flattened_sorted[0])
+        spike_map_3 = torch.zeros_like(intencities_flattened_sorted[0])
+    
+        for i in range(self.time_steps):
+            spike_map_1.scatter_(0, sorted_bins_idx[i], sorted_bins_value[i])
+            spike_map_1_copy = spike_map_1.clone().detach()
+            spike_map_1_copy = spike_map_1_copy.reshape(tuple(intencities.shape))
+            spike_map_2.scatter_(0, sorted_bins_idx[i] + int((len(intencities_flattened_sorted[0]) - sorted_bins_idx[i]) * 0.1), sorted_bins_value[i])
+            spike_map_2_copy = spike_map_2.clone().detach()
+            spike_map_2_copy = spike_map_2_copy.reshape(tuple(intencities.shape))
+            spike_map_3.scatter_(0, sorted_bins_idx[i] + int((len(intencities_flattened_sorted[0]) - sorted_bins_idx[i]) * 0.3), sorted_bins_value[i])
+            spike_map_3_copy = spike_map_3.clone().detach()
+            spike_map_3_copy = spike_map_3_copy.reshape(tuple(intencities.shape))
+            spike_map_t = torch.cat((spike_map_1_copy, spike_map_2_copy, spike_map_3_copy), 1)
+            bins_intencities.append(spike_map_t.squeeze(0).float())
+            #bins.append(spike_map_copy.sign().squeeze_(0).float())
+    
+        return torch.stack(bins_intencities)#, torch.stack(bins)
+        #return torch.stack(bins)
+
     def __call__(self, image):
-        return self.interspike_interval(image)
+        return self.intensity_to_latency(image).sign()
 #class ImageFolderCache(datasets.ImageFolder):
 #	def __init__(self, root, transform=None, target_transform=None,
 #                 loader=datasets.folder.default_loader, cache_address=None):
