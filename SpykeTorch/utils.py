@@ -304,8 +304,7 @@ class Intensity2Latency:
             return self.intensity_to_latency(image).sign()
         return self.intensity_to_latency(image)
     
-    
-class Intensity2Latency_real:
+class TTFS_phase:
     r"""Applies intensity to latency transform. Spike waves are generated in the form of
     spike bins with almost equal number of spikes.
 
@@ -317,8 +316,9 @@ class Intensity2Latency_real:
 
         If :attr:`to_spike` is :attr:`False`, then the result is intesities that are ordered and packed into bins.
     """
-    def __init__(self, number_of_spike_bins, to_spike=False):
+    def __init__(self, number_of_spike_bins, SMO_period, to_spike=False):
         self.time_steps = number_of_spike_bins
+        self.SMO_p = SMO_period
         self.to_spike = to_spike
     
     # intencities is a tensor of input intencities (1, input_channels, height, width)
@@ -340,14 +340,23 @@ class Intensity2Latency_real:
         sorted_bins_value, sorted_bins_idx = torch.split(intencities_flattened_sorted[0], bin_size), torch.split(intencities_flattened_sorted[1], bin_size)
 
         #add to the list of timesteps
-        
+        spike_map = torch.zeros_like(intencities_flattened_sorted[0])
     
         for i in range(self.time_steps):
-            spike_map = torch.zeros_like(intencities_flattened_sorted[0])
-            spike_map.scatter_(0, sorted_bins_idx[i], sorted_bins_value[i])
-            spike_map_copy = spike_map.clone().detach()
-            spike_map_copy = spike_map_copy.reshape(tuple(intencities.shape))
-            bins_intencities.append(spike_map_copy.squeeze(0).float())
+            if i == 0:
+                spike_map.scatter_(0, sorted_bins_idx[i], sorted_bins_value[i])
+                spike_map_copy = spike_map.clone().detach()
+                spike_map_copy = spike_map_copy.reshape(tuple(intencities.shape))
+                bins_intencities.append(spike_map_copy.squeeze(0).float())
+                continue
+            elif i % self.SMO_p != 0:
+                bins_intencities.append(bins_intencities[i - 1])
+            elif i % self.SMO_p == 0:
+                for j in range(self.SMO_p):
+                    spike_map.scatter_(0, sorted_bins_idx[i - (self.SMO_p - 1 - j)], sorted_bins_value[i - (self.SMO_p - 1 - j)])
+                spike_map_copy = spike_map.clone().detach()
+                spike_map_copy = spike_map_copy.reshape(tuple(intencities.shape))
+                bins_intencities.append(spike_map_copy.squeeze(0).float()) 
             #bins.append(spike_map_copy.sign().squeeze_(0).float())
     
         return torch.stack(bins_intencities)#, torch.stack(bins)
@@ -356,7 +365,8 @@ class Intensity2Latency_real:
     def __call__(self, image):
         if self.to_spike:
             return self.intensity_to_latency(image).sign()
-        return self.intensity_to_latency(image)
+        return self.intensity_to_latency(image)    
+
     
     
 class ISI:
