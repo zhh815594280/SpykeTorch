@@ -497,7 +497,6 @@ class ISI_phase:
                 bins_intencities_pre.append(spike_map_pre_copy.squeeze(0).float())
                 continue
             elif i % self.SMO_p != 0:
-                print(i)
                 bins_intencities_pre.append(bins_intencities_pre[i - 1])
             elif i % self.SMO_p == 0:
                 for j in range(self.SMO_p):
