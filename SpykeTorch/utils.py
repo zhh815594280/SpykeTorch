@@ -428,6 +428,109 @@ class ISI:
 
     def __call__(self, image):
         return self.intensity_to_latency(image).sign()
+    
+    
+class ISI_phase:
+    r"""Applies intensity to latency transform. Spike waves are generated in the form of
+    spike bins with almost equal number of spikes.
+
+    Args:
+        number_of_spike_bins (int): Number of spike bins (time steps).
+        to_spike (boolean, optional): To generate spike-wave tensor or not. Default: False
+
+    .. note::
+
+        If :attr:`to_spike` is :attr:`False`, then the result is intesities that are ordered and packed into bins.
+    """
+    def __init__(self, number_of_spike_bins, SMO_period):
+        self.time_steps = number_of_spike_bins
+        self.SMO_p = SMO_period
+    
+    # intencities is a tensor of input intencities (1, input_channels, height, width)
+    # returns a tensor of tensors containing spikes in each timestep (considers minibatch for timesteps)
+    # spikes are accumulative, i.e. spikes in timestep i are also presented in i+1, i+2, ...
+    def intensity_to_latency(self, intencities):
+        #bins = []
+        bins_intencities = []
+        bins_intencities_pre = []
+        bins_intencities_post = []
+        bins_intencities_total = []
+        nonzero_cnt = torch.nonzero(intencities).size()[0]
+
+        #check for empty bins
+        bin_size = nonzero_cnt//self.time_steps
+
+        #sort
+        intencities_flattened = torch.reshape(intencities, (-1,))
+        intencities_flattened_sorted = torch.sort(intencities_flattened, descending=True)
+
+        #bin packing
+        sorted_bins_value, sorted_bins_idx = torch.split(intencities_flattened_sorted[0], bin_size), torch.split(intencities_flattened_sorted[1], bin_size)
+
+        #add to the list of timesteps
+        spike_map = torch.zeros_like(intencities_flattened_sorted[0])
+        spike_map_pre = torch.zeros_like(intencities_flattened_sorted[0])
+        spike_map_post = torch.zeros_like(intencities_flattened_sorted[0])
+    
+        for i in range(self.time_steps):
+            if i == 0:
+                spike_map.scatter_(0, sorted_bins_idx[i], sorted_bins_value[i])
+                spike_map_copy = spike_map.clone().detach()
+                spike_map_copy = spike_map_copy.reshape(tuple(intencities.shape))
+                bins_intencities.append(spike_map_copy.squeeze(0).float())
+                continue
+            elif i % self.SMO_p != 0:
+                bins_intencities.append(bins_intencities[i - 1])
+            elif i % self.SMO_p == 0:
+                for j in range(self.SMO_p):
+                    spike_map.scatter_(0, sorted_bins_idx[i - (self.SMO_p - 1 - j)], sorted_bins_value[i - (self.SMO_p - 1 - j)])
+                spike_map_copy = spike_map.clone().detach()
+                spike_map_copy = spike_map_copy.reshape(tuple(intencities.shape))
+                bins_intencities.append(spike_map_copy.squeeze(0).float())
+                
+        for i in range(self.time_steps):
+            i_pre = int(0.8 * i)
+            i_post = int(i + (15 - i) * 0.2)
+            if i_pre == 0:
+                spike_map_pre.scatter_(0, sorted_bins_idx[i_pre], sorted_bins_value[i_pre])
+                spike_map_pre_copy = spike_map_pre.clone().detach()
+                spike_map_pre_copy = spike_map_pre_copy.reshape(tuple(intencities.shape))
+                bins_intencities_pre.append(spike_map_pre_copy.squeeze(0).float())
+                continue
+            elif i_pre % self.SMO_p != 0:
+                bins_intencities_pre.append(bins_intencities_pre[i_pre - 1])
+            elif i_pre % self.SMO_p == 0:
+                for j in range(self.SMO_p):
+                    spike_map_pre.scatter_(0, sorted_bins_idx[i_pre - (self.SMO_p - 1 - j)], sorted_bins_value[i_pre - (self.SMO_p - 1 - j)])
+                spike_map_pre_copy = spike_map_pre.clone().detach()
+                spike_map_pre_copy = spike_map_pre_copy.reshape(tuple(intencities.shape))
+                bins_intencities_pre.append(spike_map_pre_copy.squeeze(0).float())
+            #bins.append(spike_map_copy.sign().squeeze_(0).float())
+            
+        for i in range(self.time_steps):
+            i_post = int(i + (15 - i) * 0.2)
+            if i_post == 0:
+                spike_map_post.scatter_(0, sorted_bins_idx[i_post], sorted_bins_value[i_post])
+                spike_map_post_copy = spike_map_post.clone().detach()
+                spike_map_post_copy = spike_map_post_copy.reshape(tuple(intencities.shape))
+                bins_intencities_post.append(spike_map_post_copy.squeeze(0).float())
+                continue
+            elif i_post % self.SMO_p != 0:
+                bins_intencities_post.append(bins_intencities_post[i_post - 1])
+            elif i_post % self.SMO_p == 0:
+                for j in range(self.SMO_p):
+                    spike_map_post.scatter_(0, sorted_bins_idx[i_post - (self.SMO_p - 1 - j)], sorted_bins_value[i_post - (self.SMO_p - 1 - j)])
+                spike_map_post_copy = spike_map_post.clone().detach()
+                spike_map_post_copy = spike_map_post_copy.reshape(tuple(intencities.shape))
+                bins_intencities_post.append(spike_map_post_copy.squeeze(0).float())
+        
+        bins_intencities_total = torch.cat((bins_intencities_post, bins_intencities, bins_intencities_pre), 0)
+        
+        return torch.stack(bins_intencities_total)#, torch.stack(bins)
+        #return torch.stack(bins)
+
+    def __call__(self, image):
+        return self.intensity_to_latency(image).sign()
 #class ImageFolderCache(datasets.ImageFolder):
 #	def __init__(self, root, transform=None, target_transform=None,
 #                 loader=datasets.folder.default_loader, cache_address=None):
