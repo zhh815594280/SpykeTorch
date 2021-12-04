@@ -497,8 +497,9 @@ class ISI_phase:
                 bins_intencities_pre.append(spike_map_pre_copy.squeeze(0).float())
                 continue
             elif i % self.SMO_p != 0:
+                print(i)
                 bins_intencities_pre.append(bins_intencities_pre[i - 1])
-            elif i_pre % self.SMO_p == 0:
+            elif i % self.SMO_p == 0:
                 for j in range(self.SMO_p):
                     spike_map_pre.scatter_(0, sorted_bins_idx[i_pre - (self.SMO_p - 1 - j)], sorted_bins_value[i_pre - (self.SMO_p - 1 - j)])
                 spike_map_pre_copy = spike_map_pre.clone().detach()
