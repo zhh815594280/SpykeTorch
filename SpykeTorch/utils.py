@@ -523,9 +523,10 @@ class ISI_phase:
                 spike_map_post_copy = spike_map_post.clone().detach()
                 spike_map_post_copy = spike_map_post_copy.reshape(tuple(intencities.shape))
                 bins_intencities_post.append(spike_map_post_copy.squeeze(0).float())
-        bpost = torch.as_tensor(bins_intencities_post, dtype = torch.float)
-        b = torch.as_tensor(bins_intencities, dtype = torch.float)
-        bpre = torch.as_tensor(bins_intencities_pre, dtype = torch.float)
+                
+        bpost = torch.stack(bins_intencities_post)
+        b = torch.stack(bins_intencities)
+        bpre = torch.stack(bins_intencities_pre)
         bins_intencities_total = torch.cat((bpost, b, bpre), dim = 1)
         
         return bins_intencities_total#, torch.stack(bins)
