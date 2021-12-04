@@ -490,15 +490,14 @@ class ISI_phase:
                 
         for i in range(self.time_steps):
             i_pre = int(0.8 * i)
-            i_post = int(i + (15 - i) * 0.2)
-            if i_pre == 0:
+            if i == 0:
                 spike_map_pre.scatter_(0, sorted_bins_idx[i_pre], sorted_bins_value[i_pre])
                 spike_map_pre_copy = spike_map_pre.clone().detach()
                 spike_map_pre_copy = spike_map_pre_copy.reshape(tuple(intencities.shape))
                 bins_intencities_pre.append(spike_map_pre_copy.squeeze(0).float())
                 continue
-            elif i_pre % self.SMO_p != 0:
-                bins_intencities_pre.append(bins_intencities_pre[i_pre - 1])
+            elif i % self.SMO_p != 0:
+                bins_intencities_pre.append(bins_intencities_pre[i - 1])
             elif i_pre % self.SMO_p == 0:
                 for j in range(self.SMO_p):
                     spike_map_pre.scatter_(0, sorted_bins_idx[i_pre - (self.SMO_p - 1 - j)], sorted_bins_value[i_pre - (self.SMO_p - 1 - j)])
@@ -509,15 +508,15 @@ class ISI_phase:
             
         for i in range(self.time_steps):
             i_post = int(i + (15 - i) * 0.2)
-            if i_post == 0:
+            if i == 0:
                 spike_map_post.scatter_(0, sorted_bins_idx[i_post], sorted_bins_value[i_post])
                 spike_map_post_copy = spike_map_post.clone().detach()
                 spike_map_post_copy = spike_map_post_copy.reshape(tuple(intencities.shape))
                 bins_intencities_post.append(spike_map_post_copy.squeeze(0).float())
                 continue
-            elif i_post % self.SMO_p != 0:
-                bins_intencities_post.append(bins_intencities_post[i_post - 1])
-            elif i_post % self.SMO_p == 0:
+            elif i % self.SMO_p != 0:
+                bins_intencities_post.append(bins_intencities_post[i - 1])
+            elif i % self.SMO_p == 0:
                 for j in range(self.SMO_p):
                     spike_map_post.scatter_(0, sorted_bins_idx[i_post - (self.SMO_p - 1 - j)], sorted_bins_value[i_post - (self.SMO_p - 1 - j)])
                 spike_map_post_copy = spike_map_post.clone().detach()
