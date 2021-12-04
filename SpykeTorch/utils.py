@@ -523,7 +523,7 @@ class ISI_phase:
                 spike_map_post_copy = spike_map_post.clone().detach()
                 spike_map_post_copy = spike_map_post_copy.reshape(tuple(intencities.shape))
                 bins_intencities_post.append(spike_map_post_copy.squeeze(0).float())
-        
+        print(bins_intencities_post.size(), bins_intencities.size(), bins_intencities_pre.size())
         bins_intencities_total = torch.cat((bins_intencities_post, bins_intencities, bins_intencities_pre), dim = 1)
         
         return bins_intencities_total#, torch.stack(bins)
