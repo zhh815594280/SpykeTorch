@@ -289,7 +289,7 @@ class STDP_2(nn.Module):
         upper_bound (float, optional): Upper bound of the weight range. Default: 1
     """
     def __init__(self, conv_layer, learning_rate, use_stabilizer = True, lower_bound = 0, upper_bound = 1):
-        super(STDP, self).__init__()
+        super(STDP_2, self).__init__()
         self.conv_layer = conv_layer
         if isinstance(learning_rate, list):
             self.learning_rate = learning_rate
