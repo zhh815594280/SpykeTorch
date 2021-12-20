@@ -342,7 +342,7 @@ class STDP_2(nn.Module):
         lr = torch.zeros_like(self.conv_layer.weight)
         for i in range(len(winners)):
             f = winners[i][0]
-            lr[f] = torch.where(pairings[i] == True, *(self.learning_rate[f]))
+            lr[f] = torch.where(pairings[i] != True, *(self.learning_rate[f]))
         if self.use_stabilizer:
             self.conv_layer.weight += lr * (self.conv_layer.weight-self.lower_bound) * (self.upper_bound-self.conv_layer.weight)
         else:
